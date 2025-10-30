@@ -21,7 +21,34 @@ const code = fs.readFileSync(filePath, 'utf-8');
 const styledInfo = JSON.parse(fs.readFileSync(styledInfoPath, 'utf-8'));
 
 const styledComponentMap = new Map();
+const rosettaComponents = new Map();
+const neededRosettaImports = new Set();
+
+console.error('\nProcessing styled info:', JSON.stringify(styledInfo, null, 2));
+
+console.error('\nProcessing styled components:');
 for (const comp of styledInfo) {
+    console.error(`\nComponent ${comp.name}:`);
+    console.error(`isRosetta=${comp.isRosetta}`);
+    console.error(`element=${comp.element}`);
+    console.error(`rosettaComponents=${JSON.stringify(comp.rosettaComponents)}`);
+    
+    // Add all Rosetta components used in this component
+    if (comp.rosettaComponents) {
+        comp.rosettaComponents.forEach(name => {
+            neededRosettaImports.add(name);
+            console.error(`Adding needed Rosetta import: ${name}`);
+        });
+    }
+    
+    if (comp.isRosetta) {
+        rosettaComponents.set(comp.name, {
+            element: comp.element,
+            importPath: comp.importPath
+        });
+        neededRosettaImports.add(comp.element);
+        console.error(`Added Rosetta component: ${comp.name} -> ${comp.element}`);
+    }
     styledComponentMap.set(comp.name, comp.element);
 }
 
@@ -59,10 +86,10 @@ traverse(ast, {
             // Change the element type
             path.node.name = t.jsxIdentifier(originalElement);
 
-            // Add className attribute
+            // Add className attribute using string literal
             const classNameAttr = t.jSXAttribute(
                 t.jSXIdentifier('className'),
-                t.jSXExpressionContainer(t.stringLiteral(nodeName))
+                t.stringLiteral(nodeName)
             );
             path.node.attributes.push(classNameAttr);
         }
@@ -72,6 +99,16 @@ traverse(ast, {
         if (importedStyledComponents.has(nodeName)) {
             const originalElement = styledComponentMap.get(nodeName) || 'div';
             path.node.name = t.jsxIdentifier(originalElement);
+        }
+    }
+});
+
+// Begin traversal for Rosetta imports
+traverse(ast, {
+    JSXOpeningElement(path) {
+        const nodeName = path.node.name.name;
+        if (rosettaComponents.has(nodeName)) {
+            neededRosettaImports.add(rosettaComponents.get(nodeName).element);
         }
     }
 });
@@ -86,9 +123,74 @@ traverse(ast, {
     },
     Program: {
         exit(path) {
-            // Add 'import ./styles.scss'
+            // First, process all JSX elements to collect needed Rosetta components
+            traverse(path.node, {
+                JSXOpeningElement(elemPath) {
+                    const elementName = elemPath.node.name.name;
+                    console.error(`Found JSX element: ${elementName}`);
+                    
+                    // Check if this element was a styled component
+                    if (styledComponentMap.has(elementName)) {
+                        console.error(`${elementName} was a styled component`);
+                        // If it's a Rosetta component, add its element to needed imports
+                        if (rosettaComponents.has(elementName)) {
+                            const element = rosettaComponents.get(elementName).element;
+                            neededRosettaImports.add(element);
+                            console.error(`Added Rosetta import for ${elementName}: ${element}`);
+                        }
+                    }
+                }
+            });
+
+            // Remove old imports (styled components and styles)
+            path.node.body = path.node.body.filter(node => 
+                node.type !== 'ImportDeclaration' || 
+                (node.source.value !== styledComponentsImportPath && 
+                 !node.source.value.endsWith('/styles'))
+            );
+
+            // First collect existing Rosetta imports
+            const existingRosettaImports = new Set();
+            const nonRosettaImports = path.node.body.filter(node => {
+                if (node.type === 'ImportDeclaration' && node.source.value === '@joinhandshake/rosetta') {
+                    // Collect existing imports before removing
+                    node.specifiers.forEach(spec => {
+                        if (spec.type === 'ImportSpecifier') {
+                            existingRosettaImports.add(spec.imported.name);
+                            console.error(`Found existing Rosetta import: ${spec.imported.name}`);
+                        }
+                    });
+                    return false; // Remove old Rosetta import
+                }
+                return true; // Keep non-Rosetta imports
+            });
+
+            // Combine existing and new Rosetta imports
+            const allRosettaImports = new Set([...existingRosettaImports, ...neededRosettaImports]);
+            console.error('Combined Rosetta imports:', [...allRosettaImports]);
+
+            // Update body with non-Rosetta imports
+            path.node.body = nonRosettaImports;
+
+            // Add styles.scss import first
             const scssImport = t.importDeclaration([], t.stringLiteral('./styles.scss'));
             path.node.body.unshift(scssImport);
+
+            // Add single consolidated Rosetta import if needed
+            if (allRosettaImports.size > 0) {
+                const sortedImports = Array.from(allRosettaImports).sort();
+                console.error('Adding consolidated Rosetta imports:', sortedImports);
+                
+                const rosettaImport = t.importDeclaration(
+                    sortedImports.map(name => 
+                        t.importSpecifier(t.identifier(name), t.identifier(name))
+                    ),
+                    t.stringLiteral('@joinhandshake/rosetta')
+                );
+                
+                path.node.body.unshift(rosettaImport);
+                console.error('Added single consolidated Rosetta import statement');
+            }
         }
     }
 });

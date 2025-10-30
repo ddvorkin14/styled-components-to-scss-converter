@@ -1,5 +1,5 @@
+import { ButtonText, Checkbox, ContainerContext, DialogContext, Dismiss, FieldSize, HumanAvatar, Menu, MenuAction, MenuActionButtonProps, MenuArrowIcon, MenuItem, MenuSize, Modal, ModalSizes, PrimaryButton, Rosetta, Search, SecondaryButton, Size, StandaloneAvatarSizes, SubduedSimpleIconButton, ToastStatus, useDialog } from "@joinhandshake/rosetta";
 import "./styles.scss";
-import { ButtonText, Checkbox, ContainerContext, DialogContext, Dismiss, FieldSize, HumanAvatar, Menu, MenuAction, MenuActionButtonProps, MenuArrowIcon, MenuItem, MenuSize, ModalSizes, PrimaryButton, Rosetta, SecondaryButton, Size, StandaloneAvatarSizes, SubduedSimpleIconButton, ToastStatus, useDialog } from "@joinhandshake/rosetta";
 import * as React from "react";
 import { useNamespacedTranslation } from "@joinhandshake/i18n";
 import { AttachableTypeEnum, graphql, ShareWindowGetMentionRecommendationsDocument, User, ShareWindow_UserFragment, ShareWindow_JobFragment, ShareWindowInboxConversationSendMessageMutationDocument, ShareableObjectTypeEnum, Job } from "@joinhandshake/consumer-graphql-types";
@@ -137,7 +137,7 @@ const PeopleListItemSubtitle = ({
   // Show education subtitle if user has at least one education, and workExperiences is an array (even if empty)
   if (user?.educations?.length > 0 && Array.isArray(user.workExperiences) && user.workExperiences.length === 0) {
     const majorName = user.educations[0]?.majors && user.educations[0]?.majors[0]?.name;
-    return <p className={"PersonSubtext"}>
+    return <p className="PersonSubtext">
         {majorName}
         {majorName && user.educations[0].classYear && " · "}
         {user.educations[0].classYear}
@@ -150,7 +150,7 @@ const PeopleListItemSubtitle = ({
       employerName,
       jobPositionName
     } = user.workExperiences[0];
-    return <p className={"PersonSubtext"}>
+    return <p className="PersonSubtext">
         {employerName}
         {employerName && jobPositionName && " · "}
         {jobPositionName}
@@ -184,8 +184,8 @@ const PeopleListItem = ({
       }
     }} />
       <MemoAvatar user={user as User} />
-      <div data-testid="detailsContainer" centered={!subtitleWillRender} className={"DetailsContainer"}>
-        <p className={"Username"}>{`${user?.calculatedFirstName} ${user?.lastName}`}</p>
+      <div data-testid="detailsContainer" centered={!subtitleWillRender} className="DetailsContainer">
+        <p className="Username">{`${user?.calculatedFirstName} ${user?.lastName}`}</p>
         {subtitleWillRender && <PeopleListItemSubtitle user={user} />}
       </div>
     </li>;
@@ -359,7 +359,7 @@ const ShareWindow = ({
   return <DialogContext.Provider value={modal}>
       {isPublicJobsEnabled && <Menu data-size={MenuSize.Medium} disclosure={MenuDisclosure}>
           <MenuItem onClick={handleCopyLink}>
-            <div className={"MenuItemContent"}>
+            <div className="MenuItemContent">
               <Rosetta.Hyperlink width="24px" height="24px" />
               <span>{t("copyLink")}</span>
             </div>
@@ -367,7 +367,7 @@ const ShareWindow = ({
           {!!navigator.share &&
       // show native sharing option if supported by browser
       <MenuItem onClick={handleNativeShare}>
-              <div className={"MenuItemContent"}>
+              <div className="MenuItemContent">
                 <Rosetta.Share width="24px" height="24px" />
                 <span>{t("shareTo")}</span>
               </div>
@@ -376,7 +376,7 @@ const ShareWindow = ({
         modal.show();
         segment.trackEvent("job_share_message_start", jobShareMessageStart);
       }}>
-            <div className={"MenuItemContent"}>
+            <div className="MenuItemContent">
               <Rosetta.SendEmail width="24px" height="24px" />
               <span>{t("sendJobTo")}</span>
             </div>
@@ -386,10 +386,10 @@ const ShareWindow = ({
       segment.trackEvent("job_share_message_start", jobShareMessageStart);
     }}>
               <Rosetta.SendEmail />
-              <span className={"ShareLabel"}>{t("share")}</span>
-            </SecondaryButton>} visible={isPublicJobsEnabled ? modal.visible : undefined} hide={isPublicJobsEnabled ? modal.hide : undefined} className={"StyledModal"}>
-        <div className={"Header"}>
-          <h1 className={"Title"}>{t([`${type.toLowerCase()}.title`, "genericTitle"])}</h1>
+              <span className="ShareLabel">{t("share")}</span>
+            </SecondaryButton>} visible={isPublicJobsEnabled ? modal.visible : undefined} hide={isPublicJobsEnabled ? modal.hide : undefined} className="StyledModal">
+        <div className="Header">
+          <h1 className="Title">{t([`${type.toLowerCase()}.title`, "genericTitle"])}</h1>
           <Dismiss>
             <SubduedSimpleIconButton aria-label={t("closeModal")} size={Size.medium} onClick={() => {
             setSelectedUserIds([]);
@@ -400,7 +400,7 @@ const ShareWindow = ({
             </SubduedSimpleIconButton>
           </Dismiss>
         </div>
-        <div className={"Body"}>
+        <div className="Body">
           {type && <p>{t(`${type.toLowerCase()}.description`)}</p>}
           <Search placeholder={t("searchPlaceholder")} data-size={FieldSize.Medium} value={searchQuery || ""} disabled={isSharing || false} onValueChange={value => {
           // When search query changes, update the list of displayed selected IDs
@@ -413,14 +413,14 @@ const ShareWindow = ({
             // Don't clear displayedSelectedIds when clearing search
             // This keeps selected users visible when search is cleared
           }
-        }} className={"CustomSearch"} />
+        }} className="CustomSearch" />
           {peopleSuggestionsLoading && <div>{t("loading")}</div>}
           {peopleSuggestionsError && <div>{t("peopleSearchFailed")}</div>}
 
-          {peopleSuggestions?.mentionRecommendations?.peopleSuggestions.length === 0 && <p className={"NoResultLabel"}>{t("noResults")}</p>}
+          {peopleSuggestions?.mentionRecommendations?.peopleSuggestions.length === 0 && <p className="NoResultLabel">{t("noResults")}</p>}
 
           {/* Always show checked users at the top, regardless of search */}
-          <ul disabled={isSharing || false} className={"CustomList"}>
+          <ul disabled={isSharing || false} className="CustomList">
             {/* Show selected users at the top */}
             {displayedSelectedIds.map(id => {
             // Find user in allLoadedUsers
@@ -433,7 +433,7 @@ const ShareWindow = ({
           .filter(user => !displayedSelectedIds.includes(user.id)).map(user => <PeopleListItem key={user.id} user={user as User} selectedUserIds={selectedUserIds} isChecked={selectedUserIds.includes(user.id)} setSelectedUserIds={setSelectedUserIds} />)}
           </ul>
         </div>
-        <div className={"Footer"}>
+        <div className="Footer">
           <div className="editor-wrapper" data-hook="message-editor">
             <RichTextEditor className="rich-text-editor" value={editorValue} onChange={({
             currentTarget: {

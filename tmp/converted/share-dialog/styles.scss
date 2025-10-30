@@ -1,36 +1,31 @@
 .StyledModal {
-
-   {
+  {
     align-items: flex-start;
     align-self: stretch;
     min-height: 276px;
     max-height: 80vh;
     overflow: hidden;
   }
-
 }
+
 .Title {
-
   margin-top: 9px;
-
 }
-.Header {
 
+.Header {
   align-items: center;
   align-self: stretch;
   display: flex;
   gap: var(--rosetta-size-spacing-four);
   padding: var(--rosetta-size-spacing-eight) var(--rosetta-size-spacing-eight)
-    var(--rosetta-size-spacing-three) var(--rosetta-size-spacing-eight);
-
+  var(--rosetta-size-spacing-three) var(--rosetta-size-spacing-eight);
   h1 {
     font-size: var(--rosetta-size-font-fs5);
     flex: 1 0 0;
   }
-
 }
-.Body {
 
+.Body {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -38,16 +33,14 @@
   margin: 0;
   text-align: justify;
   padding: var(--rosetta-size-spacing-two) var(--rosetta-size-spacing-eight) 0
-    var(--rosetta-size-spacing-eight);
+  var(--rosetta-size-spacing-eight);
   overflow: hidden;
-
   p {
     margin: 0;
   }
-
 }
-.CustomList {
 
+.CustomList {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   grid-auto-rows: min-content;
@@ -62,79 +55,66 @@
   li {
     display: flex;
   }
-
-  
-
 }
-.CustomSearch {
 
+.CustomSearch {
   input {
     width: 100%;
     padding-left: 40px !important;
   }
-
 }
+
 .DetailsContainer {
-
   margin-left: var(--rosetta-size-spacing-two);
-  
-
 }
-.Username {
 
+.Username {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   width: 180px;
-
 }
-.Footer {
 
+.Footer {
   align-items: center;
   flex-shrink: 0;
   gap: var(--rosetta-size-spacing-three);
   justify-content: flex-end;
   padding: 0 var(--rosetta-size-spacing-eight) var(--rosetta-size-spacing-eight)
-    var(--rosetta-size-spacing-eight);
+  var(--rosetta-size-spacing-eight);
   position: sticky;
   bottom: 0;
   background: var(--rosetta-bg-primary);
   width: 100%;
   box-sizing: border-box;
-
   .editor-wrapper {
     width: 100%;
   }
-
   .rich-text-editor {
     max-height: 200px;
   }
-
 }
-.PersonSubtext {
 
+.PersonSubtext {
   font-size: 12px;
   line-height: 15px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   width: 180px;
-
 }
+
 .NoResultLabel {
-
   margin-top: 5px !important;
-
 }
+
 .ShareLabel {
-
   padding: 0px 4px;
-
 }
-.MenuItemContent {
 
+.MenuItemContent {
   display: flex;
   align-items: center;
   gap: var(--rosetta-size-spacing-two);
-
 }
+

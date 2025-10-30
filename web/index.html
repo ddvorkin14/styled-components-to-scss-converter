@@ -73,6 +73,10 @@
 <body>
 <h1>Styled-Component Scanner</h1>
 <input type="text" id="dir" value="/Users/danieldvorkin/handshake/next/clients/consumer/src/components/share-dialog" size="80"/>
+<div style="margin: 10px 0;">
+    <input type="checkbox" id="writeToSource" />
+    <label for="writeToSource">Write converted files to source directory</label>
+</div>
 <button id="scan">Scan</button>
 <div id="results"></div>
 <script>
@@ -84,8 +88,18 @@
         results.innerHTML = "";
 
         try {
+            // Get the writeToSource checkbox value
+            const writeToSource = document.getElementById("writeToSource").checked;
+            console.log('Making request with writeToSource:', writeToSource);
+            
             // First trigger the scan to generate the files
-            const res = await fetch(`/scan?dir=${encodeURIComponent(dir)}`);
+            const queryParams = new URLSearchParams({
+                dir: dir,
+                writeToSource: writeToSource.toString()
+            });
+            const url = `/scan?${queryParams.toString()}`;
+            console.log('Request URL:', url);
+            const res = await fetch(url);
             if (!res.ok) {
                 results.innerHTML = `<pre style="color:red;">Server error:\n${await res.text()}</pre>`;
                 return;

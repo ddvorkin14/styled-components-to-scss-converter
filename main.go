@@ -17,6 +17,8 @@ type StyledComponent struct {
 	Element      string `json:"element"`
 	File         string `json:"file"`
 	ConvertedJSX string `json:"convertedJSX"`
+	IsRosetta    bool   `json:"isRosetta"`    // Is this a Rosetta component
+	ImportPath   string `json:"importPath"`    // The import path for Rosetta components
 }
 
 // Run Node parser on a file and return styled components
@@ -36,14 +38,6 @@ func parseFile(path string) ([]StyledComponent, error) {
 
 	fmt.Printf("parseFile: %s\n  stderr: %s\n  stdout: %s\n", path, string(errBytes), string(outBytes))
 
-	/*
-		if len(errBytes) > 0 {
-			// Node parsing error → propagate as Go error
-			fmt.Printf("Node parser error for %s:\n%s\n", path, string(errBytes))
-			return nil, fmt.Errorf("node parser failed for %s", path)
-		}
-	*/
-
 	var comps []StyledComponent
 	if err := json.Unmarshal(outBytes, &comps); err != nil {
 		fmt.Printf("JSON unmarshal error for %s:\n%s\n", path, string(outBytes))
@@ -53,7 +47,43 @@ func parseFile(path string) ([]StyledComponent, error) {
 	return comps, nil
 }
 
-func saveConverted(comp StyledComponent, scanDir string) {
+// writeToPath writes content to both temp and source directories
+func writeToPath(targetPath, content string, writeToSource bool, sourceDir string) error {
+	// Clean up paths
+	targetPath = strings.TrimPrefix(targetPath, "/")
+	
+	// First write to tmp directory
+	tmpPath := filepath.Join("tmp/converted", targetPath)
+	tmpPath = strings.ReplaceAll(tmpPath, "\\", "/")
+	fmt.Printf("Writing to tmp path: %s\n", tmpPath)
+	os.MkdirAll(filepath.Dir(tmpPath), 0755)
+	if err := os.WriteFile(tmpPath, []byte(content), 0644); err != nil {
+		fmt.Printf("Error writing to tmp path: %s - %v\n", tmpPath, err)
+		return err
+	}
+
+	// If writeToSource is true, also write to source directory
+	if writeToSource && sourceDir != "" {
+		// For source path, we need to write relative to the original source directory
+		sourcePath := filepath.Join(sourceDir, filepath.Base(targetPath))
+		sourcePath = strings.ReplaceAll(sourcePath, "\\", "/")
+		fmt.Printf("Writing to source path: %s\n", sourcePath)
+		if err := os.MkdirAll(filepath.Dir(sourcePath), 0755); err != nil {
+			fmt.Printf("Error creating source directory: %s - %v\n", filepath.Dir(sourcePath), err)
+			return err
+		}
+		if err := os.WriteFile(sourcePath, []byte(content), 0644); err != nil {
+			fmt.Printf("Error writing to source path: %s - %v\n", sourcePath, err)
+			return err
+		}
+		fmt.Printf("Successfully wrote to source path: %s\n", sourcePath)
+	} else {
+		fmt.Printf("Skipping source write. writeToSource: %v, sourceDir: %s\n", writeToSource, sourceDir)
+	}
+	return nil
+}
+
+func saveConverted(comp StyledComponent, scanDir string, writeToSource bool) {
 	// Find the path segment starting from 'components'
 	idx := strings.Index(comp.File, "/components/")
 	if idx == -1 {
@@ -61,11 +91,7 @@ func saveConverted(comp StyledComponent, scanDir string) {
 		idx = len(scanDir) + 1
 	}
 	relPath := comp.File[idx+1:] // remove the leading slash before 'components'
-	convertedPath := filepath.Join("tmp/converted", relPath)
-	convertedPath = strings.ReplaceAll(convertedPath, "\\", "/")
-	convertedPath = strings.TrimSuffix(convertedPath, filepath.Ext(convertedPath)) + ".scss-converted.tsx"
-
-	os.MkdirAll(filepath.Dir(convertedPath), 0755)
+	relPath = strings.TrimSuffix(relPath, filepath.Ext(relPath)) + ".scss-converted.tsx"
 
 	content := fmt.Sprintf(`// Converted %s
 import './%s.scss';
@@ -75,21 +101,17 @@ export const %sConverted = () => {
 };
 `, comp.Name, comp.Name, comp.Name, comp.ConvertedJSX)
 
-	os.WriteFile(convertedPath, []byte(content), 0644)
+	writeToPath(relPath, content, writeToSource, scanDir)
 }
 
-func saveEmptyConverted(filePath, scanDir string) {
+func saveEmptyConverted(filePath, scanDir string, writeToSource bool) {
 	// Find the path segment starting from 'components'
 	idx := strings.Index(filePath, "/components/")
 	if idx == -1 {
 		idx = len(scanDir) + 1
 	}
 	relPath := filePath[idx+1:]
-	convertedPath := filepath.Join("tmp/converted", relPath)
-	convertedPath = strings.ReplaceAll(convertedPath, "\\", "/")
-	convertedPath = strings.TrimSuffix(convertedPath, filepath.Ext(convertedPath)) + ".scss-converted.tsx"
-
-	os.MkdirAll(filepath.Dir(convertedPath), 0755)
+	relPath = strings.TrimSuffix(relPath, filepath.Ext(relPath)) + ".scss-converted.tsx"
 
 	content := fmt.Sprintf(`// No styled-components found in %s
 export const EmptyConverted = () => {
@@ -97,7 +119,7 @@ export const EmptyConverted = () => {
 };
 `, filepath.Base(filePath), filepath.Base(filePath))
 
-	os.WriteFile(convertedPath, []byte(content), 0644)
+	writeToPath(relPath, content, writeToSource, scanDir)
 }
 
 // Scan handler
@@ -107,6 +129,20 @@ func scanDirHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing dir parameter", http.StatusBadRequest)
 		return
 	}
+	
+	// Get writeToSource parameter from query string
+	writeToSourceStr := r.URL.Query().Get("writeToSource")
+	writeToSource := writeToSourceStr == "true"
+	
+	// Store the original source directory if we're not in tmp/converted
+	sourceDir := dir
+	if strings.HasPrefix(dir, "tmp/converted") {
+		sourceDir = strings.TrimPrefix(dir, "tmp/converted/")
+		writeToSource = false // Don't write back to source when viewing converted files
+	}
+	
+	fmt.Printf("scanDirHandler called with dir: %s, sourceDir: %s, writeToSource: %v, writeToSourceStr: %s\n", 
+		dir, sourceDir, writeToSource, writeToSourceStr)
 
 	var allStyledComponents []StyledComponent
 	var allFiles []string
@@ -193,16 +229,48 @@ func scanDirHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			// If refactoring fails, save empty file with error
 			errorContent := fmt.Sprintf("// Refactoring failed for %s\n// %s", path, err.Error())
-			os.WriteFile(convertedPath, []byte(errorContent), 0644)
+			relPath, _ := filepath.Rel(filepath.Dir(dir), path)
+			relPath = strings.TrimSuffix(relPath, filepath.Ext(relPath)) + ".scss-converted.tsx"
+			writeToPath(relPath, errorContent, writeToSource, dir)
 		} else {
-			os.WriteFile(convertedPath, refactoredBytes, 0644)
+			relPath, _ := filepath.Rel(filepath.Dir(dir), path)
+			relPath = strings.TrimSuffix(relPath, filepath.Ext(relPath)) + ".scss-converted.tsx"
+			writeToPath(relPath, string(refactoredBytes), writeToSource, dir)
 		}
 	}
 
 	// 3. Aggregate and save CSS
 	cssByFile := make(map[string]string)
 	for _, comp := range allStyledComponents {
-		formattedCSS := fmt.Sprintf(".%s {\n%s\n}\n", comp.Name, comp.CSS)
+		// Clean up CSS and ensure consistent indentation
+		css := strings.TrimSpace(comp.CSS)
+		
+		// Fix indentation for each line
+		lines := strings.Split(css, "\n")
+		var formattedLines []string
+		nestLevel := 0
+		
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if trimmed != "" {
+				// Count closing braces at the start of the line
+				if strings.HasPrefix(trimmed, "}") {
+					nestLevel--
+				}
+				
+				// Add proper indentation based on nesting level
+				indent := strings.Repeat("  ", nestLevel+1)
+				formattedLines = append(formattedLines, indent+trimmed)
+				
+				// Count opening braces at the end of the line
+				if strings.HasSuffix(trimmed, "{") {
+					nestLevel++
+				}
+			}
+		}
+		css = strings.Join(formattedLines, "\n")
+		
+		formattedCSS := fmt.Sprintf(".%s {\n%s\n}\n\n", comp.Name, css)
 		cssByFile[comp.File] += formattedCSS
 	}
 
@@ -212,9 +280,7 @@ func scanDirHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		scssPath := strings.TrimSuffix(relPath, filepath.Ext(relPath)) + ".scss"
-		convertedPath := filepath.Join("tmp/converted", scssPath)
-		os.MkdirAll(filepath.Dir(convertedPath), 0755)
-		os.WriteFile(convertedPath, []byte(css), 0644)
+		writeToPath(scssPath, css, writeToSource, dir)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
