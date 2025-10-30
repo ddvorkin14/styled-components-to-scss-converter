@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Styled-Component Scanner</title>
+    <!-- Using custom theme only -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-scss.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-jsx.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-tsx.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-babel.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 20px; }
+        #results > div { display: flex; gap: 20px; margin-bottom: 30px; }
+        .column { 
+            flex: 1; 
+            border: 1px solid #e1e4e8; 
+            padding: 16px; 
+            border-radius: 6px; 
+            overflow-x: auto;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        h3 { 
+            margin-top: 0;
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: #24292e;
+        }
+        pre { 
+            background: #1e1e1e; 
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        pre code { 
+            font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 13px;
+            text-shadow: none !important;
+        }
+        .dark-theme { 
+            background: #1e1e1e; 
+            color: #d4d4d4; 
+        }
+        /* Override Prism styles */
+        .dark-theme .token { background: transparent !important; }
+        .dark-theme .token.comment { color: #6A9955; }
+        .dark-theme .token.string { color: #CE9178; }
+        .dark-theme .token.keyword { color: #569CD6; }
+        .dark-theme .token.function { color: #DCDCAA; }
+        .dark-theme .token.class-name { color: #4EC9B0; }
+        .dark-theme .token.property { color: #9CDCFE; }
+        .dark-theme .token.operator { color: #D4D4D4; background: transparent !important; }
+        .dark-theme .token.punctuation { color: #D4D4D4; }
+        .dark-theme .token.arrow { color: #D4D4D4; }
+        .dark-theme .token.arrow-operator { color: #D4D4D4; }
+        .dark-theme .token.operator-char { color: #D4D4D4; }
+        
+        /* Ensure no background on any tokens */
+        .dark-theme .token[class*="operator"],
+        .dark-theme .token[class*="punctuation"],
+        .dark-theme span[class*="operator"],
+        .dark-theme span[class*="punctuation"] {
+            background: transparent !important;
+            color: #D4D4D4 !important;
+        }
+    </style>
+</head>
+<body>
+<h1>Styled-Component Scanner</h1>
+<input type="text" id="dir" value="/Users/danieldvorkin/handshake/next/clients/consumer/src/components/share-dialog" size="80"/>
+<button id="scan">Scan</button>
+<div id="results"></div>
+<script>
+    document.getElementById("scan").onclick = async () => {
+        const dir = document.getElementById("dir").value.trim();
+        if (!dir) return alert("Enter a directory path first");
+
+        const results = document.getElementById("results");
+        results.innerHTML = "";
+
+        try {
+            // First trigger the scan to generate the files
+            const res = await fetch(`/scan?dir=${encodeURIComponent(dir)}`);
+            if (!res.ok) {
+                results.innerHTML = `<pre style="color:red;">Server error:\n${await res.text()}</pre>`;
+                return;
+            }
+
+            const data = await res.json();
+            console.log('Response data:', data);
+            if (!data || data.length === 0) {
+                results.innerHTML = "<p>No styled-components found.</p>";
+                return;
+            }
+
+            // Get the component path relative to components directory
+            const componentPath = dir.substring(dir.lastIndexOf('/components/') + 11);
+            console.log('Component path:', componentPath);
+
+            // Create container for the component
+            const container = document.createElement("div");
+
+            // First check what files are available in the converted directory
+            const listRes = await fetch(`/scan?dir=${encodeURIComponent(`tmp/converted/${componentPath}`)}`);
+            if (!listRes.ok) {
+                throw new Error(`Failed to list converted directory: ${await listRes.text()}`);
+            }
+            const convertedFiles = await listRes.json();
+            console.log('Files in converted directory:', convertedFiles);
+
+            // Find the .tsx file that isn't styles.tsx
+            const tsxFile = convertedFiles.find(f => 
+                f && f.endsWith('.scss-converted.tsx') && 
+                !f.startsWith('styles')
+            );
+            if (!tsxFile) {
+                throw new Error('No converted component file found');
+            }
+
+            // SCSS is always styles.scss
+            const scssFile = 'styles.scss';
+
+            // Construct the URLs for both files
+            const scssUrl = `/converted/${componentPath}/${scssFile}`;
+            const tsxUrl = `/converted/${componentPath}/${tsxFile}`;
+            
+            console.log('SCSS URL:', scssUrl);
+            console.log('TSX URL:', tsxUrl);
+
+            // Left Column: SCSS content
+            const col1 = document.createElement("div");
+            col1.className = "column";
+            try {
+                const scssRes = await fetch(scssUrl);
+                if (!scssRes.ok) {
+                    throw new Error(`HTTP ${scssRes.status} fetching SCSS: ${await scssRes.text()}`);
+                }
+                const scssCode = await scssRes.text();
+                const escapedScssCode = scssCode
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+                col1.innerHTML = `<h3>${scssFile}</h3><pre class="dark-theme"><code class="language-scss">${escapedScssCode}</code></pre>`;
+                Prism.highlightAllUnder(col1);
+            } catch (err) {
+                console.error('Error fetching SCSS:', err);
+                col1.innerHTML = `<h3>${scssFile}</h3><pre>Error: ${err.message}</pre>`;
+            }
+
+            // Right Column: Converted Component
+            const col2 = document.createElement("div");
+            col2.className = "column";
+            try {
+                const tsxRes = await fetch(tsxUrl);
+                if (!tsxRes.ok) {
+                    throw new Error(`HTTP ${tsxRes.status} fetching TSX: ${await tsxRes.text()}`);
+                }
+                const tsxCode = await tsxRes.text();
+                const escapedTsxCode = tsxCode
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+                col2.innerHTML = `<h3>${tsxFile}</h3><pre class="dark-theme"><code class="language-typescript">${escapedTsxCode}</code></pre>`;
+                Prism.highlightAllUnder(col2);
+            } catch (err) {
+                console.error('Error fetching TSX:', err);
+                col2.innerHTML = `<h3>${tsxFile}</h3><pre>Error: ${err.message}</pre>`;
+            }
+
+            container.appendChild(col1);
+            container.appendChild(col2);
+            results.appendChild(container);
+        } catch (err) {
+            results.innerHTML = `<pre style="color:red;">${err}</pre>`;
+        }
+    };
+</script>
+</body>
+</html>
