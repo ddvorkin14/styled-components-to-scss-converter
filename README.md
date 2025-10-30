@@ -3,6 +3,7 @@
 A tool that scans React/TypeScript projects for styled-components usage and converts them to SCSS files with corresponding component updates. This tool provides a web interface to visualize and preview the conversions.
 
 ## Features
+![styled-component converter](https://github.com/user-attachments/assets/1bdb22da-082e-425c-b178-2ae7ac7a228e)
 
 - Scans directories for files containing styled-components
 - Converts styled-components to SCSS classes
