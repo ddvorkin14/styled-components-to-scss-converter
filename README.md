@@ -12,6 +12,7 @@ A tool that scans React/TypeScript projects for styled-components usage and conv
 - Web interface for visualizing conversions
 - Side-by-side comparison of original and converted code
 - Syntax highlighting for better code readability
+- Optional direct write to source for immediate file conversion
 
 ## Prerequisites
 
@@ -50,8 +51,14 @@ http://localhost:3001
 
 3. In the web interface:
    - Enter the path to your components directory in the input field
+   - (Optional) Check "Write to Source" if you want to write the converted files directly to your source directory
    - Click "Scan" to start the conversion process
    - View the converted SCSS and component files side by side
+
+Note: The "Write to Source" feature allows you to:
+- Preview conversions without modifying your source code (default)
+- Write converted files directly to your source directory when checked
+- Safely experiment with conversions before committing to changes
 
 ## Project Structure
 
