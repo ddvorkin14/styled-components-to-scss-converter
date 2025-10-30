@@ -82,6 +82,7 @@ Note: The "Write to Source" feature allows you to:
 4. Generates new component files that use SCSS classes instead of styled-components
 5. Creates corresponding SCSS files with the converted styles
 6. Provides a web interface to preview and compare the conversions
+7. Optionally writes converted files directly to your source directory when enabled
 
 ## Contributing
 
